@@ -1,42 +1,239 @@
 from __future__ import annotations
 
-from datetime import date
-from typing import Optional
+import random
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+PROPERTIES = [
+    {
+        "id": "boracay-sky",
+        "name": "Boracay Sky Resort",
+        "region": "Station 1",
+        "status": "Healthy",
+        "occupancy": 86,
+        "room_count": 180,
+        "guest_wifi_status": "Stable",
+        "uptime": 99.96,
+        "bandwidth": 480,
+        "last_sync": "2 mins ago",
+    },
+    {
+        "id": "sunset-reef",
+        "name": "Sunset Reef Hotel",
+        "region": "Station 2",
+        "status": "Healthy",
+        "occupancy": 74,
+        "room_count": 150,
+        "guest_wifi_status": "Monitoring",
+        "uptime": 99.92,
+        "bandwidth": 410,
+        "last_sync": "4 mins ago",
+    },
+    {
+        "id": "coral-bay",
+        "name": "Coral Bay Villas",
+        "region": "Station 3",
+        "status": "Degraded",
+        "occupancy": 81,
+        "room_count": 130,
+        "guest_wifi_status": "Warning",
+        "uptime": 99.74,
+        "bandwidth": 390,
+        "last_sync": "1 min ago",
+    },
+    {
+        "id": "lagoon-crest",
+        "name": "Lagoon Crest Suites",
+        "region": "Diniwid",
+        "status": "Healthy",
+        "occupancy": 67,
+        "room_count": 90,
+        "guest_wifi_status": "Stable",
+        "uptime": 99.98,
+        "bandwidth": 260,
+        "last_sync": "3 mins ago",
+    },
+    {
+        "id": "island-cove",
+        "name": "Island Cove Retreat",
+        "region": "Bulabog",
+        "status": "Healthy",
+        "occupancy": 92,
+        "room_count": 160,
+        "guest_wifi_status": "Stable",
+        "uptime": 99.95,
+        "bandwidth": 510,
+        "last_sync": "2 mins ago",
+    },
+]
+
+NETWORK_SEGMENTS = [
+    {"id": 10, "name": "Guest Wi-Fi", "subnet": "10.10.0.0/22", "status": "Isolated", "controls": ["Internet breakout", "WPA3", "Rate limiting"]},
+    {"id": 20, "name": "Staff & Administration", "subnet": "10.20.0.0/24", "status": "Restricted", "controls": ["PMS access", "Printer access", "MFA required"]},
+    {"id": 30, "name": "Door Locks & CCTV", "subnet": "10.30.0.0/24", "status": "Locked", "controls": ["IoT-only routing", "No guest reachability", "TLS-secured"]},
+    {"id": 40, "name": "Point of Sale", "subnet": "10.40.0.0/24", "status": "PCI compliant", "controls": ["Encrypted gateway", "Payment isolation", "No public access"]},
+    {"id": 99, "name": "Management", "subnet": "10.99.0.0/24", "status": "Protected", "controls": ["Admin-only", "Meraki API", "SNMP monitoring"]},
+]
+
+RESERVATIONS = [
+    {
+        "id": "R-1001",
+        "guest_name": "Alicia Santos",
+        "property_id": "boracay-sky",
+        "property_name": "Boracay Sky Resort",
+        "room_number": "101A",
+        "check_in": "2026-11-12",
+        "check_out": "2026-11-17",
+        "partner": "Expedia",
+        "status": "Confirmed",
+        "door_access_code": "A12-48",
+    },
+    {
+        "id": "R-1002",
+        "guest_name": "Michael Chen",
+        "property_id": "sunset-reef",
+        "property_name": "Sunset Reef Hotel",
+        "room_number": "204B",
+        "check_in": "2026-11-14",
+        "check_out": "2026-11-19",
+        "partner": "Booking.com",
+        "status": "Checked-in",
+        "door_access_code": "B67-19",
+    },
+    {
+        "id": "R-1003",
+        "guest_name": "Karla Mendez",
+        "property_id": "coral-bay",
+        "property_name": "Coral Bay Villas",
+        "room_number": "303C",
+        "check_in": "2026-11-15",
+        "check_out": "2026-11-20",
+        "partner": "Direct",
+        "status": "Pending",
+        "door_access_code": "C60-08",
+    },
+]
+
+ALERTS = [
+    {
+        "id": "A-201",
+        "severity": "Critical",
+        "message": "Coral Bay Villas guest Wi-Fi packet loss exceeds 5% threshold.",
+        "property": "Coral Bay Villas",
+        "status": "Open",
+    },
+    {
+        "id": "A-202",
+        "severity": "Warning",
+        "message": "Primary fiber link degraded at Island Cove Retreat.",
+        "property": "Island Cove Retreat",
+        "status": "Open",
+    },
+    {
+        "id": "A-203",
+        "severity": "Info",
+        "message": "Nightly Terraform drift check passed for all five properties.",
+        "property": "All properties",
+        "status": "Resolved",
+    },
+]
 
 
-class ReservationCreate(BaseModel):
-    guest_name: str = Field(..., min_length=2, max_length=80)
-    property_id: str = Field(..., min_length=2, max_length=20)
-    room_number: str = Field(..., min_length=1, max_length=20)
-    check_in: date
-    check_out: date
-    partner: str = Field(default="Direct", min_length=2, max_length=50)
-    status: str = Field(default="Confirmed")
-
-    @field_validator("check_out")
-    @classmethod
-    def validate_check_out(cls, value: date, info):
-        if "check_in" in info.data and value <= info.data["check_in"]:
-            raise ValueError("check_out must be after check_in")
-        return value
+def get_dashboard_summary() -> dict[str, Any]:
+    total_rooms = sum(property_["room_count"] for property_ in PROPERTIES)
+    avg_occupancy = round(sum(property_["occupancy"] for property_ in PROPERTIES) / len(PROPERTIES), 1)
+    healthy_properties = sum(1 for property_ in PROPERTIES if property_["status"] == "Healthy")
+    return {
+        "total_properties": len(PROPERTIES),
+        "total_rooms": total_rooms,
+        "avg_occupancy": avg_occupancy,
+        "healthy_properties": healthy_properties,
+        "critical_alerts": sum(1 for alert in ALERTS if alert["severity"] == "Critical" and alert["status"] == "Open"),
+        "network_uptime": round(sum(property_["uptime"] for property_ in PROPERTIES) / len(PROPERTIES), 2),
+        "upcoming_stays": len(RESERVATIONS),
+    }
 
 
-class ReservationUpdate(BaseModel):
-    guest_name: Optional[str] = Field(default=None, min_length=2, max_length=80)
-    property_id: Optional[str] = Field(default=None, min_length=2, max_length=20)
-    room_number: Optional[str] = Field(default=None, min_length=1, max_length=20)
-    check_in: Optional[date] = None
-    check_out: Optional[date] = None
-    partner: Optional[str] = Field(default=None, min_length=2, max_length=50)
-    status: Optional[str] = None
+def get_properties() -> list[dict[str, Any]]:
+    return PROPERTIES
 
-    @field_validator("check_out")
-    @classmethod
-    def validate_check_out(cls, value: Optional[date], info):
+
+def get_network_segments() -> list[dict[str, Any]]:
+    return NETWORK_SEGMENTS
+
+
+def get_reservations() -> list[dict[str, Any]]:
+    return RESERVATIONS
+
+
+def get_alerts() -> list[dict[str, Any]]:
+    return ALERTS
+
+
+def get_property_by_id(property_id: str) -> dict[str, Any] | None:
+    return next((item for item in PROPERTIES if item["id"] == property_id), None)
+
+
+def create_reservation(payload: dict[str, Any]) -> dict[str, Any]:
+    property_match = get_property_by_id(payload.get("property_id"))
+    if property_match is None:
+        raise ValueError("Property not found")
+
+    duplicate = next(
+        (
+            item
+            for item in RESERVATIONS
+            if item["property_id"] == payload.get("property_id")
+            and item["room_number"] == payload.get("room_number")
+            and item["status"] != "Cancelled"
+        ),
+        None,
+    )
+    if duplicate:
+        raise ValueError("Room is already reserved for the selected date range")
+
+    access_code = f"{chr(65 + random.randint(0, 25))}{random.randint(10, 99)}-{random.randint(10, 99)}"
+    reservation = {
+        "id": f"R-{random.randint(1004, 9999)}",
+        "guest_name": payload["guest_name"],
+        "property_id": payload["property_id"],
+        "property_name": property_match["name"],
+        "room_number": payload["room_number"],
+        "check_in": str(payload["check_in"]),
+        "check_out": str(payload["check_out"]),
+        "partner": payload.get("partner", "Direct"),
+        "status": payload.get("status", "Confirmed"),
+        "door_access_code": access_code,
+    }
+    RESERVATIONS.insert(0, reservation)
+    return reservation
+
+
+def update_reservation(reservation_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+    reservation = next((item for item in RESERVATIONS if item["id"] == reservation_id), None)
+    if reservation is None:
+        raise KeyError(reservation_id)
+
+    if updates.get("property_id"):
+        property_match = get_property_by_id(updates["property_id"])
+        if property_match is None:
+            raise ValueError("Property not found")
+        reservation["property_id"] = updates["property_id"]
+        reservation["property_name"] = property_match["name"]
+
+    for key, value in updates.items():
         if value is None:
-            return value
-        if "check_in" in info.data and info.data["check_in"] is not None and value <= info.data["check_in"]:
-            raise ValueError("check_out must be after check_in")
-        return value
+            continue
+        if key in {"check_in", "check_out"}:
+            reservation[key] = str(value)
+        elif key != "property_id":
+            reservation[key] = value
+
+    return reservation
+
+
+def cancel_reservation(reservation_id: str) -> dict[str, Any]:
+    reservation = next((item for item in RESERVATIONS if item["id"] == reservation_id), None)
+    if reservation is None:
+        raise KeyError(reservation_id)
+    reservation["status"] = "Cancelled"
+    return {"message": "Reservation cancelled successfully", "reservation_id": reservation_id}

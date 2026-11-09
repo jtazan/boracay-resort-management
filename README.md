@@ -1,198 +1,47 @@
-const errorBanner = document.getElementById('error-banner');
-const refreshBtn = document.getElementById('refresh-btn');
-const statsGrid = document.getElementById('stats-grid');
-const propertiesGrid = document.getElementById('properties-grid');
-const networkGrid = document.getElementById('network-grid');
-const reservationsTable = document.getElementById('reservations-table');
-const alertsGrid = document.getElementById('alerts-grid');
-const propertySelect = document.getElementById('property-select');
-const reservationForm = document.getElementById('reservation-form');
+# Boracay Resort Management
 
-function showError(message) {
-  errorBanner.textContent = message;
-  errorBanner.classList.remove('hidden');
-}
+A working prototype for the Boracay Island Resort Group operations dashboard, built with FastAPI and a static UI. It includes login, reservation management, property monitoring, and consistent error handling for invalid input and failed requests.
 
-function clearError() {
-  errorBanner.textContent = '';
-  errorBanner.classList.add('hidden');
-}
+## Features
 
-function setStatusBadge(status) {
-  if (!status) return '<span class="badge">Unknown</span>';
-  const normalized = status.toLowerCase();
-  if (normalized.includes('healthy') || normalized.includes('stable') || normalized.includes('confirmed') || normalized.includes('checked-in')) {
-    return '<span class="badge">' + status + '</span>';
-  }
-  if (normalized.includes('warning') || normalized.includes('monitoring') || normalized.includes('pending')) {
-    return '<span class="badge warning">' + status + '</span>';
-  }
-  return '<span class="badge danger">' + status + '</span>';
-}
+- Central dashboard for all five resort properties
+- Property health and occupancy summaries
+- Network segmentation overview for guest, staff, CCTV, POS, and management VLANs
+- Reservation creation and tracking
+- Alerts and incident visibility
+- Demo authentication using a secure JWT flow
+- Validation and structured API errors
 
-function renderStats(data) {
-  const cards = [
-    { label: 'Properties', value: data.total_properties, meta: `${data.healthy_properties} healthy` },
-    { label: 'Rooms', value: data.total_rooms, meta: `${data.avg_occupancy}% avg occupancy` },
-    { label: 'Network uptime', value: `${data.network_uptime}%`, meta: 'SLA target 99.9%' },
-    { label: 'Open alerts', value: data.critical_alerts, meta: `${data.upcoming_stays} upcoming stays` },
-  ];
+## Demo login
 
-  statsGrid.innerHTML = cards.map(card => `
-    <div class="stat-card">
-      <div class="label">${card.label}</div>
-      <div class="value">${card.value}</div>
-      <div class="meta">${card.meta}</div>
-    </div>
-  `).join('');
-}
+- Username: `resortadmin`
+- Password: `ChangeMe123!`
 
-function renderProperties(properties) {
-  propertiesGrid.innerHTML = properties.map(property => `
-    <div class="property-card">
-      <div class="meta-row">
-        <h4>${property.name}</h4>
-        ${setStatusBadge(property.status)}
-      </div>
-      <div class="meta-row">
-        <span>${property.region}</span>
-        <span>${property.occupancy}% occupied</span>
-      </div>
-      <div class="meta-row">
-        <span>Rooms</span>
-        <span>${property.room_count}</span>
-      </div>
-      <div class="meta-row">
-        <span>Guest Wi-Fi</span>
-        <span>${property.guest_wifi_status}</span>
-      </div>
-      <div class="meta-row">
-        <span>Uptime</span>
-        <span>${property.uptime}%</span>
-      </div>
-      <div class="meta-row">
-        <span>Bandwidth</span>
-        <span>${property.bandwidth} Mbps</span>
-      </div>
-    </div>
-  `).join('');
-}
+## Local development
 
-function renderNetwork(segments) {
-  networkGrid.innerHTML = segments.map(segment => `
-    <div class="network-card">
-      <div class="meta-row">
-        <h4>VLAN ${segment.id}</h4>
-        ${setStatusBadge(segment.status)}
-      </div>
-      <div class="meta-row">
-        <span>${segment.name}</span>
-        <span>${segment.subnet}</span>
-      </div>
-      <ul>
-        ${segment.controls.map(control => `<li>${control}</li>`).join('')}
-      </ul>
-    </div>
-  `).join('');
-}
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-function renderReservations(reservations) {
-  reservationsTable.innerHTML = reservations.map(item => `
-    <tr>
-      <td>${item.id}</td>
-      <td>${item.guest_name}</td>
-      <td>${item.property_name}</td>
-      <td>${item.room_number}</td>
-      <td>${setStatusBadge(item.status)}</td>
-    </tr>
-  `).join('');
-}
+Then open:
 
-function renderAlerts(alerts) {
-  alertsGrid.innerHTML = alerts.map(alert => `
-    <div class="alert-card">
-      <div class="meta-row">
-        <h4>${alert.id}</h4>
-        <span class="badge ${alert.severity === 'Critical' ? 'danger' : alert.severity === 'Warning' ? 'warning' : ''}">${alert.severity}</span>
-      </div>
-      <p>${alert.message}</p>
-      <div class="meta-row">
-        <span>${alert.property}</span>
-        <span>${alert.status}</span>
-      </div>
-    </div>
-  `).join('');
-}
+```text
+http://localhost:8000
+```
 
-function populatePropertyOptions(properties) {
-  propertySelect.innerHTML = properties.map(property => `
-    <option value="${property.id}">${property.name}</option>
-  `).join('');
-}
+## Environment variables
 
-async function fetchJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
+```bash
+export JWT_SECRET_KEY="change-this-secret"
+export JWT_ALGORITHM="HS256"
+export JWT_TTL_MINUTES="480"
+export DEMO_USERNAME="resortadmin"
+export DEMO_PASSWORD="ChangeMe123!"
+```
 
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.message || errorBody.error || 'Request failed');
-  }
+## Notes
 
-  return response.json();
-}
-
-async function loadDashboard() {
-  clearError();
-  try {
-    const [dashboard, properties, segments, reservations, alerts] = await Promise.all([
-      fetchJson('/api/dashboard'),
-      fetchJson('/api/properties'),
-      fetchJson('/api/network-segments'),
-      fetchJson('/api/reservations'),
-      fetchJson('/api/alerts'),
-    ]);
-
-    renderStats(dashboard);
-    renderProperties(properties);
-    renderNetwork(segments);
-    renderReservations(reservations);
-    renderAlerts(alerts);
-    populatePropertyOptions(properties);
-  } catch (error) {
-    showError(`Failed to load dashboard: ${error.message}`);
-  }
-}
-
-reservationForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  clearError();
-
-  const formData = new FormData(reservationForm);
-  const payload = {
-    guest_name: formData.get('guest_name'),
-    property_id: formData.get('property_id'),
-    room_number: formData.get('room_number'),
-    partner: formData.get('partner'),
-    check_in: formData.get('check_in'),
-    check_out: formData.get('check_out'),
-    status: 'Confirmed',
-  };
-
-  try {
-    await fetchJson('/api/reservations', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    reservationForm.reset();
-    await loadDashboard();
-  } catch (error) {
-    showError(`Reservation failed: ${error.message}`);
-  }
-});
-
-refreshBtn.addEventListener('click', loadDashboard);
-
-loadDashboard();
+This is a working demo application intended to model the Boracay resort operations platform described in the project brief. It does not connect to live Cisco Meraki or PMS systems, but the dashboard structure and API design are aligned with the architecture requirements.

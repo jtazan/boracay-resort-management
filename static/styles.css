@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boracay Resort Management</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">BR</div>
+          <div>
+            <p class="eyebrow">Resort operations</p>
+            <h1>Boracay Group</h1>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <a class="nav-link active" href="#overview">Overview</a>
+          <a class="nav-link" href="#network">Network Segments</a>
+          <a class="nav-link" href="#reservations">Reservations</a>
+          <a class="nav-link" href="#alerts">Alerts</a>
+        </nav>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Operations dashboard</p>
+            <h2>Cloud-managed resort control center</h2>
+          </div>
+          <button class="primary-btn" id="refresh-btn">Refresh data</button>
+        </header>
+
+        <section class="error-banner hidden" id="error-banner"></section>
+
+        <section id="overview" class="panel-section">
+          <div class="stats-grid" id="stats-grid"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-header">
+            <h3>Properties</h3>
+          </div>
+          <div id="properties-grid" class="properties-grid"></div>
+        </section>
+
+        <section id="network" class="panel-section">
+          <div class="section-header">
+            <h3>Network Segmentation</h3>
+          </div>
+          <div id="network-grid" class="network-grid"></div>
+        </section>
+
+        <section id="reservations" class="panel-section two-column">
+          <div class="card">
+            <div class="section-header">
+              <h3>Reservation tracking</h3>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Guest</th>
+                  <th>Property</th>
+                  <th>Room</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="reservations-table"></tbody>
+            </table>
+          </div>
+
+          <div class="card form-card">
+            <div class="section-header">
+              <h3>Create reservation</h3>
+            </div>
+            <form id="reservation-form">
+              <div class="field-group">
+                <label>Guest name</label>
+                <input type="text" name="guest_name" required />
+              </div>
+              <div class="field-group">
+                <label>Property</label>
+                <select name="property_id" id="property-select" required></select>
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Room</label>
+                  <input type="text" name="room_number" required />
+                </div>
+                <div class="field-group">
+                  <label>Partner</label>
+                  <input type="text" name="partner" value="Direct" />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Check-in</label>
+                  <input type="date" name="check_in" required />
+                </div>
+                <div class="field-group">
+                  <label>Check-out</label>
+                  <input type="date" name="check_out" required />
+                </div>
+              </div>
+              <button class="primary-btn" type="submit">Add reservation</button>
+            </form>
+          </div>
+        </section>
+
+        <section id="alerts" class="panel-section">
+          <div class="section-header">
+            <h3>Alerts and incident status</h3>
+          </div>
+          <div id="alerts-grid" class="alerts-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

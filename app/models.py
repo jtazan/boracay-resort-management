@@ -1,136 +1,53 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import date
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
-from app.store import (
-    create_reservation,
-    get_alerts,
-    get_dashboard_summary,
-    get_network_segments,
-    get_properties,
-    get_reservations,
-    update_reservation,
-    cancel_reservation,
-)
-from app.models import ReservationCreate, ReservationUpdate
-
-app = FastAPI(
-    title="Boracay Resort Management",
-    version="1.0.0",
-    description="Cloud-managed hospitality operations dashboard for Boracay Island Resort Group",
-)
-
-BASE_DIR = __import__("pathlib").Path(__file__).resolve().parent.parent
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+from pydantic import BaseModel, Field, field_validator
 
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=400,
-        content={
-            "error": "Validation failed",
-            "message": "The request payload is invalid.",
-            "details": exc.errors(),
-        },
-    )
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=6, max_length=128)
 
 
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "error": exc.__class__.__name__,
-            "message": exc.detail,
-        },
-    )
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    role: str
 
 
-@app.exception_handler(Exception)
-async def generic_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "InternalServerError",
-            "message": "An unexpected error occurred. Please try again later.",
-        },
-    )
+class ReservationCreate(BaseModel):
+    guest_name: str = Field(..., min_length=2, max_length=80)
+    property_id: str = Field(..., min_length=2, max_length=20)
+    room_number: str = Field(..., min_length=1, max_length=20)
+    check_in: date
+    check_out: date
+    partner: str = Field(default="Direct", min_length=2, max_length=50)
+    status: str = Field(default="Confirmed")
+
+    @field_validator("check_out")
+    @classmethod
+    def validate_check_out(cls, value: date, info):
+        if "check_in" in info.data and value <= info.data["check_in"]:
+            raise ValueError("check_out must be after check_in")
+        return value
 
 
-@app.get("/")
-async def root() -> FileResponse:
-    return FileResponse(BASE_DIR / "static" / "index.html")
+class ReservationUpdate(BaseModel):
+    guest_name: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    property_id: Optional[str] = Field(default=None, min_length=2, max_length=20)
+    room_number: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    check_in: Optional[date] = None
+    check_out: Optional[date] = None
+    partner: Optional[str] = Field(default=None, min_length=2, max_length=50)
+    status: Optional[str] = None
 
-
-@app.get("/api/health")
-async def health() -> dict[str, Any]:
-    return {
-        "status": "ok",
-        "service": "Boracay Resort Management",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-@app.get("/api/dashboard")
-async def dashboard() -> dict[str, Any]:
-    return get_dashboard_summary()
-
-
-@app.get("/api/properties")
-async def list_properties() -> list[dict[str, Any]]:
-    return get_properties()
-
-
-@app.get("/api/network-segments")
-async def network_segments() -> list[dict[str, Any]]:
-    return get_network_segments()
-
-
-@app.get("/api/reservations")
-async def list_reservations() -> list[dict[str, Any]]:
-    return get_reservations()
-
-
-@app.get("/api/alerts")
-async def list_alerts() -> list[dict[str, Any]]:
-    return get_alerts()
-
-
-@app.post("/api/reservations", status_code=201)
-async def create_reservation(payload: ReservationCreate) -> dict[str, Any]:
-    try:
-        return create_reservation(payload.model_dump())
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-
-@app.put("/api/reservations/{reservation_id}")
-async def update_reservation_route(reservation_id: str, payload: ReservationUpdate) -> dict[str, Any]:
-    try:
-        return update_reservation(reservation_id, payload.model_dump(exclude_unset=True))
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Reservation not found") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.delete("/api/reservations/{reservation_id}")
-async def delete_reservation(reservation_id: str) -> dict[str, Any]:
-    try:
-        return cancel_reservation(reservation_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Reservation not found") from exc
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    @field_validator("check_out")
+    @classmethod
+    def validate_check_out(cls, value: Optional[date], info):
+        if value is None:
+            return value
+        if "check_in" in info.data and info.data["check_in"] is not None and value <= info.data["check_in"]:
+            raise ValueError("check_out must be after check_in")
+        return value
